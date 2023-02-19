@@ -8,6 +8,7 @@ import openai
 import pandas as pd
 from flask import Flask, request
 from flask_cors import CORS, cross_origin
+import datetime
 
 
 def get_text(soap_note):
@@ -113,6 +114,65 @@ def amazon_transcribe(audio_file_name, max_speakers=-1):
         )
     data = pd.read_json(result["TranscriptionJob"]["Transcript"]["TranscriptFileUri"])
     transcript = data["results"][2][0]["transcript"]
+
+    # speaker differentiation
+    labels = data["results"]["speaker_labels"]["segments"]
+    speaker_start_times = {}
+
+    for label in labels:
+        for item in label["items"]:
+            speaker_start_times[item["start_time"]] = item["speaker_label"]
+
+    items = data["results"]["items"]
+    lines = []
+    line = ""
+    time = 0
+    speaker = "null"
+    i = 0
+
+    # loop through all elements
+    for item in items:
+        i = i + 1
+        content = item["alternatives"][0]["content"]
+        # if it's starting time
+        if item.get("start_time"):
+            current_speaker = speaker_start_times[item["start_time"]]
+        # in AWS output, there are types as punctuation
+        elif item["type"] == "punctuation":
+            line = line + content
+
+        # handle different speaker
+        if current_speaker != speaker:
+            if speaker:
+                if speaker == "spk_1":
+                    lines.append({"speaker": "Patient", "line": line, "time": time})
+                elif speaker == "spk_0":
+                    lines.append({"speaker": "Doctor", "line": line, "time": time})
+            line = content
+            speaker = current_speaker
+            time = item["start_time"]
+        elif item["type"] != "punctuation":
+            line = line + " " + content
+
+    if speaker == "spk_1":
+        lines.append({"speaker": "Patient", "line": line, "time": time})
+    elif speaker == "spk_0":
+        lines.append({"speaker": "Doctor", "line": line, "time": time})
+
+    # sort the results by the time
+    sorted_lines = sorted(lines, key=lambda k: float(k["time"]))
+    # write into the .txt file
+    transcript = ""
+    for line_data in sorted_lines:
+        transcript += (
+            "["
+            + str(datetime.timedelta(seconds=int(round(float(line_data["time"])))))
+            + "] "
+            + line_data.get("speaker")
+            + ": "
+            + line_data.get("line")
+        )
+
     return transcript
 
 
