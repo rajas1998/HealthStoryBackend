@@ -1,5 +1,6 @@
 import pickle as pkl
 import time
+
 import boto3
 import openai
 import pandas as pd
@@ -115,8 +116,8 @@ def amazon_transcribe(audio_file_name, max_speakers=-1):
 @app.route("/soap/soapify")
 def soapify(audio_file_name):
     transcript = amazon_transcribe(audio_file_name, max_speakers=2)
-    conv = f"""Here is a conversation between a doctor and a patient having hypertension:\n" 
-    + {transcript} 
+    conv = f"""Here is a conversation between a doctor and a patient having hypertension:\n"
+    + {transcript}
     + "\nCan you convert this conversation to a medical SOAP format?
     """
     openai.api_key = "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"
@@ -339,3 +340,17 @@ def return_tests():
                     }
                 )
     return {"tests": tests_ret}
+
+
+@app.route("/best_graphs")
+def return_best_graphs():
+    return (
+        openai.Completion.create(
+            model="text-davinci-003",
+            prompt=f"{full_string} Imagine you are a doctor. Using the SOAP notes mentioned, what are the top 3 tests that a doctor would want to see. Answer in the form of a numbered list",
+            max_tokens=512,
+            temperature=0,
+        )
+        .choices[0]
+        .text.strip()
+    )
