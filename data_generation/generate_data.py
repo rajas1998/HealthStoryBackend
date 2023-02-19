@@ -1,9 +1,10 @@
 # Importing required libraries
 
-import numpy as np
-import matplotlib.pyplot as plt
-from datetime import date, timedelta
 import pickle as pkl
+from datetime import date, timedelta
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 # Creating a series of data of in range of 1-50.
 x = np.linspace(0, 1, 50)
@@ -160,3 +161,38 @@ with open("../data/users/1/soaps.pkl", "wb") as f:
         },
     }
     pkl.dump(soap_list, f)
+
+with open("../data/users/1/drugs.pkl", "wb") as f:
+    drugs = {
+        "Amlodicine": {
+            "Dose": 5,
+            "Times": [
+                date.fromisoformat("2019-08-02"),
+                date.fromisoformat("2020-05-21"),
+                date.fromisoformat("2020-09-01"),
+            ],
+        },
+        "Lisinopril": {
+            "Dose": 10,
+            "Times": [
+                date.fromisoformat("2020-02-18"),
+                date.fromisoformat("2020-05-21"),
+                date.fromisoformat("2020-09-01"),
+            ],
+        },
+        "Losartan": {
+            "Dose": 50,
+            "Times": [
+                date.fromisoformat("2020-05-21"),
+                date.fromisoformat("2020-09-01"),
+            ],
+        },
+        "Hydrochlorothiazide": {
+            "Dose": 12.5,
+            "Times": [
+                date.fromisoformat("2020-05-21"),
+                date.fromisoformat("2020-09-01"),
+            ],
+        },
+    }
+    pkl.dump(drugs, f)

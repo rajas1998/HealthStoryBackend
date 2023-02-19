@@ -354,3 +354,9 @@ def return_best_graphs():
         .choices[0]
         .text.strip()
     )
+
+
+@app.route("/drugs")
+def return_drugs():
+    drugs = pkl.load("data/users/1/drugs.pkl")
+    return drugs
