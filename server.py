@@ -28,6 +28,13 @@ transcribe = boto3.client(
     region_name="us-west-1",
 )
 
+s3 = boto3.client(
+    "s3",
+    aws_access_key_id="AKIA3CCUOX3QCZY2TVF2",
+    aws_secret_access_key="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",
+    region_name="us-west-1",
+)
+
 
 def check_job_name(job_name):
     job_verification = True
@@ -58,6 +65,11 @@ def check_job_name(job_name):
 
 @app.route("/soap/transcribe")
 def amazon_transcribe(audio_file_name, max_speakers=-1):
+
+    file_name = "/content/conv.mp3"
+    s3_file = "conv.mp3"
+    bucket_name = "treehacksath"
+    s3.upload_file(file_name, bucket_name, s3_file)
 
     if max_speakers > 10:
         raise ValueError("Maximum detected speakers is 10.")
