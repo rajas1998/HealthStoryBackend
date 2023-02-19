@@ -126,7 +126,7 @@ def amazon_transcribe(audio_file_name, max_speakers=-1):
     items = data["results"]["items"]
     lines = []
     line = ""
-    time = 0
+    curr_time = 0
     speaker = "null"
     i = 0
 
@@ -145,19 +145,21 @@ def amazon_transcribe(audio_file_name, max_speakers=-1):
         if current_speaker != speaker:
             if speaker:
                 if speaker == "spk_1":
-                    lines.append({"speaker": "Patient", "line": line, "time": time})
+                    lines.append(
+                        {"speaker": "Patient", "line": line, "time": curr_time}
+                    )
                 elif speaker == "spk_0":
-                    lines.append({"speaker": "Doctor", "line": line, "time": time})
+                    lines.append({"speaker": "Doctor", "line": line, "time": curr_time})
             line = content
             speaker = current_speaker
-            time = item["start_time"]
+            curr_time = item["start_time"]
         elif item["type"] != "punctuation":
             line = line + " " + content
 
     if speaker == "spk_1":
-        lines.append({"speaker": "Patient", "line": line, "time": time})
+        lines.append({"speaker": "Patient", "line": line, "time": curr_time})
     elif speaker == "spk_0":
-        lines.append({"speaker": "Doctor", "line": line, "time": time})
+        lines.append({"speaker": "Doctor", "line": line, "time": curr_time})
 
     # sort the results by the time
     sorted_lines = sorted(lines, key=lambda k: float(k["time"]))
