@@ -1,2 +1,2 @@
 # HealthStoryBackend
-FLASK_APP=server flask run
+FLASK_APP=server flask run --host 0.0.0.0 --port 8000

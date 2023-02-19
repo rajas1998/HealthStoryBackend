@@ -1,12 +1,26 @@
-import openai
-from flask import Flask
-import boto3
-import time
-import pandas as pd
 import pickle as pkl
+import time
+
+import boto3
+import openai
+import pandas as pd
+from flask import Flask
+
+
+def get_text(soap_note):
+    return f"""Date: {soap_note['date']}\n
+    Subjective: {soap_note['subjective']}\n
+    Objective: {soap_note['objective']}\n
+    Assessment: {soap_note['assessment']}\n
+    Plan: {soap_note['plan']}"""
+
 
 app = Flask(__name__)
 openai.api_key = "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"
+full_string = ""
+soaps = pkl.load(open("data/users/1/soaps.pkl", "rb"))
+for i in range(len(soaps)):
+    full_string += f"Note {i}: {soaps[i]}\n"
 
 transcribe = boto3.client(
     "transcribe",
@@ -87,11 +101,16 @@ def amazon_transcribe(audio_file_name, max_speakers=-1):
     return transcript
 
 
+@app.route("/dummy")
+def dummy():
+    return {"22/12/12": 10}
+
+
 @app.route("/soap/summary")
 def hello_world():
     note_summaries = []
     full_string = ""
-    soap_list = pkl.load(open("../data/users/1/soaps.pkl", "rb"))
+    soap_list = pkl.load(open("data/users/1/soaps.pkl", "rb"))
     for ind, soap_note in enumerate(soap_list):
         prompt = f"{soap_note}\n What is the most important insight from this SOAP?"
 
@@ -111,7 +130,8 @@ def hello_world():
     full_story = (
         openai.Completion.create(
             model="text-davinci-003",
-            prompt=f"{full_string} What is the summary of this series of soap notes as a story which is useful for a doctor?",
+            prompt=f"""{full_string} What is the summary of this series of
+             soap notes as a story which is useful for a doctor?""",
             max_tokens=512,
             temperature=0,
         )
@@ -122,3 +142,63 @@ def hello_world():
     ret = {"full_summary": full_story, "note_summaries": note_summaries}
 
     return ret
+
+
+def get_value(test_type, timestamp):
+    if test_type == "Urine":
+        data = pkl.load(open("data/users/1/urine.pkl", "rb"))
+    elif test_type == "ECG":
+        data = pkl.load(open("data/users/1/ecg.pkl", "rb"))
+    elif test_type == "Echocardiogram":
+        data = pkl.load(open("data/users/1/echo.pkl", "rb"))
+    elif test_type == "Blood":
+        data = pkl.load(open("data/users/1/blood.pkl", "rb"))
+    elif test_type == "Metabolic":
+        data = pkl.load(open("data/users/1/meta.pkl", "rb"))
+    else:
+        raise ValueError
+
+    for i, j in data:
+        if i == timestamp:
+            return j
+    raise IndexError
+
+
+def find_soap(timestamp):
+    for i in range(len(soaps)):
+        if soaps[i] == timestamp:
+            return soaps[i]
+
+
+@app.route("/tests")
+def return_tests():
+    tests = pkl.load(open("data/users/1/tests.pkl", "rb"))
+    recommended_tests = pkl.load(open("data/users/1/tests.pkl", "rb"))
+    tests_ret = []
+    for test_type in recommended_tests:
+        for timestamp in recommended_tests[test_type]:
+            if timestamp not in tests[test_type]:
+                tests_ret.append(
+                    {
+                        "Type": test_type,
+                        "Done": False,
+                        "Value": get_value(test_type, timestamp),
+                    }
+                )
+            else:
+                tests_ret.append(
+                    {
+                        "Type": test_type,
+                        "Done": True,
+                        "Value": get_value(test_type, timestamp),
+                        "Reason": openai.Completion.create(
+                            prompt=f"{find_soap(timestamp)} Imagine you are a doctor. What is the reason that you ordered the {test_type} readings for this patient based on the SOAP notes?",
+                            model="text-davinci-003",
+                            max_tokens=512,
+                            temperature=0,
+                        )
+                        .choices[0]
+                        .text.strip(),
+                    }
+                )
+    return {"tests": tests_ret}
