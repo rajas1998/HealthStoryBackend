@@ -1,7 +1,8 @@
-import pickle as pkl
-import time
 import calendar
 import os
+import pickle as pkl
+import time
+
 import boto3
 import openai
 import pandas as pd
@@ -367,3 +368,17 @@ def return_best_graphs():
 def return_drugs():
     drugs = pkl.load("data/users/1/drugs.pkl")
     return drugs
+
+
+@app.route("/question", methods=["POST"])
+def return_question():
+    return (
+        openai.Completion.create(
+            model="text-davinci-003",
+            prompt=f"{full_string} Imagine you are the assistant for a doctor and are given the previous SOAP notes as context. Answer the following question: {request.json['Question']}",
+            max_tokens=512,
+            temperature=0,
+        )
+        .choices[0]
+        .text.strip()
+    )
