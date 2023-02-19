@@ -182,8 +182,6 @@ def amazon_transcribe(audio_file_name, max_speakers=-1):
 @app.route("/soap/soapify", methods=["POST"])
 def soapify():
     file_path = f"temp.webm"
-    file = request.files["myFile"]
-    file.save(file_path)
     transcript = amazon_transcribe(file_path, max_speakers=2)
     conv = f"""Here is a conversation between a doctor and a patient having hypertension:\n"
     + {transcript}
@@ -194,8 +192,6 @@ def soapify():
     response = openai.Completion.create(
         model="text-davinci-003", prompt=conv, temperature=0.7, max_tokens=1024
     )
-    if os.path.exists(file_path):
-        os.remove(file_path)
     return response["choices"][0]["text"]
 
 
@@ -314,6 +310,10 @@ def return_best_graphs():
     )
 
 
+def unravel(data):
+    return {"date": [i[0] for i in data], "val": [i[1] for i in data]}
+
+
 @app.route("/data")
 def return_data():
     best_graphs = return_best_graphs().strip(".").strip(" ")
@@ -343,17 +343,32 @@ def return_data():
         if len(set(i[0].split(" ")).intersection(graph_set)) == 0
     ]
     final_response = [
-        {"title": i[0], "data": pkl.load(open(i[1], "rb"))} for i in important_data
+        {"title": i[0], "data": unravel(pkl.load(open(i[1], "rb")))}
+        for i in important_data
     ]
     for i in non_important_data:
-        final_response.append({"title": i[0], "data": pkl.load(open(i[1], "rb"))})
+        final_response.append(
+            {"title": i[0], "data": unravel(pkl.load(open(i[1], "rb")))}
+        )
 
     return {"response": final_response}
 
 
 @app.route("/drugs")
 def return_drugs():
-    drugs = pkl.load(f"{BASE_PATH}/drugs.pkl")
+    drugs = pkl.load(open(f"{BASE_PATH}/drugs.pkl", "rb"))
+    for drug in drugs:
+        res = (
+            openai.Completion.create(
+                model="text-davinci-003",
+                prompt=f"{full_string} Imagine you are a doctor. Using the SOAP notes mentioned, in one sentence, explain why this patient was prescribed to take the {drug}, excluding hypertension.",
+                max_tokens=512,
+                temperature=0,
+            )
+            .choices[0]
+            .text.strip()
+        )
+        drugs[drug]["reason"] = res.replace("\n", "").strip(" ")
     return drugs
 
 
