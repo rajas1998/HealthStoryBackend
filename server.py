@@ -1,10 +1,12 @@
 import pickle as pkl
 import time
-
+import calendar
+import os
 import boto3
 import openai
 import pandas as pd
-from flask import Flask
+from flask import Flask, request
+from flask_cors import CORS, cross_origin
 
 
 def get_text(soap_note):
@@ -16,6 +18,7 @@ def get_text(soap_note):
 
 
 app = Flask(__name__)
+CORS(app)
 openai.api_key = "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"
 full_string = ""
 soaps = pkl.load(open("data/users/1/soaps.pkl", "rb"))
@@ -67,19 +70,18 @@ def check_job_name(job_name):
 @app.route("/soap/transcribe")
 def amazon_transcribe(audio_file_name, max_speakers=-1):
 
-    file_name = "/content/conv.mp3"
-    s3_file = "conv.mp3"
+    s3_file = "conv.webm"
     bucket_name = "treehacksath"
-    s3.upload_file(file_name, bucket_name, s3_file)
+    s3.upload_file(audio_file_name, bucket_name, s3_file)
 
     if max_speakers > 10:
         raise ValueError("Maximum detected speakers is 10.")
 
-    job_uri = "s3://treehacksath/" + audio_file_name
-    job_name = (audio_file_name.split(".")[0]).replace(" ", "")
+    job_uri = "s3://treehacksath/" + s3_file
+    job_name = str(calendar.timegm(time.gmtime()))
 
     # check if name is taken or not
-    job_name = check_job_name(job_name)
+    # job_name = check_job_name(job_name)
     if max_speakers != -1:
         transcribe.start_transcription_job(
             TranscriptionJobName=job_name,
@@ -103,7 +105,7 @@ def amazon_transcribe(audio_file_name, max_speakers=-1):
             "FAILED",
         ]:
             break
-        time.sleep(15)
+        time.sleep(0.01)
     if result["TranscriptionJob"]["TranscriptionJobStatus"] == "COMPLETED":
         data = pd.read_json(
             result["TranscriptionJob"]["Transcript"]["TranscriptFileUri"]
@@ -113,9 +115,12 @@ def amazon_transcribe(audio_file_name, max_speakers=-1):
     return transcript
 
 
-@app.route("/soap/soapify")
-def soapify(audio_file_name):
-    transcript = amazon_transcribe(audio_file_name, max_speakers=2)
+@app.route("/soap/soapify", methods=["POST"])
+def soapify():
+    file_path = f"temp.webm"
+    file = request.files["myFile"]
+    file.save(file_path)
+    transcript = amazon_transcribe(file_path, max_speakers=2)
     conv = f"""Here is a conversation between a doctor and a patient having hypertension:\n"
     + {transcript}
     + "\nCan you convert this conversation to a medical SOAP format?
@@ -125,6 +130,8 @@ def soapify(audio_file_name):
     response = openai.Completion.create(
         model="text-davinci-003", prompt=conv, temperature=0.7, max_tokens=1024
     )
+    if os.path.exists(file_path):
+        os.remove(file_path)
     return response["choices"][0]["text"]
 
 
