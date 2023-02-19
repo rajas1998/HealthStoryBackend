@@ -1,7 +1,10 @@
 import pickle as pkl
 import time
+<<<<<<< Updated upstream
 
 import boto3
+=======
+>>>>>>> Stashed changes
 import openai
 import pandas as pd
 from flask import Flask
@@ -99,6 +102,21 @@ def amazon_transcribe(audio_file_name, max_speakers=-1):
     data = pd.read_json(result["TranscriptionJob"]["Transcript"]["TranscriptFileUri"])
     transcript = data["results"][2][0]["transcript"]
     return transcript
+
+@app.route("/soap/soapify")
+def soapify(audio_file_name):
+    transcript = amazon_transcribe(audio_file_name, max_speakers=2)
+    conv = f"""Here is a conversation between a doctor and a patient having hypertension:\n" 
+    + {transcript} 
+    + "\nCan you convert this conversation to a medical SOAP format?
+    """
+    openai.api_key = "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"
+
+    response = openai.Completion.create(
+        model="text-davinci-003", prompt=conv, temperature=0.7, max_tokens=1024
+    )
+    return response["choices"][0]["text"]
+
 
 
 @app.route("/dummy")
