@@ -1,4 +1,5 @@
 import calendar
+import datetime
 import os
 import pickle as pkl
 import time
@@ -8,7 +9,6 @@ import openai
 import pandas as pd
 from flask import Flask, request
 from flask_cors import CORS, cross_origin
-import datetime
 
 
 def get_text(soap_note):
@@ -23,7 +23,8 @@ app = Flask(__name__)
 CORS(app)
 openai.api_key = "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"
 full_string = ""
-soaps = pkl.load(open("data/users/1/soaps.pkl", "rb"))
+BASE_PATH = "data/users/1"
+soaps = pkl.load(open(f"{BASE_PATH}/soaps.pkl", "rb"))
 for i in range(len(soaps)):
     full_string += f"Note {i}: {soaps[i]}\n"
 
@@ -241,15 +242,15 @@ def hello_world():
 
 def get_value(test_type, timestamp):
     if test_type == "Urine":
-        data = pkl.load(open("data/users/1/urine.pkl", "rb"))
+        data = pkl.load(open(f"{BASE_PATH}/urine.pkl", "rb"))
     elif test_type == "ECG":
-        data = pkl.load(open("data/users/1/ecg.pkl", "rb"))
+        data = pkl.load(open(f"{BASE_PATH}/ecg.pkl", "rb"))
     elif test_type == "Echocardiogram":
-        data = pkl.load(open("data/users/1/echo.pkl", "rb"))
+        data = pkl.load(open(f"{BASE_PATH}/echo.pkl", "rb"))
     elif test_type == "Blood":
-        data = pkl.load(open("data/users/1/blood.pkl", "rb"))
+        data = pkl.load(open(f"{BASE_PATH}/blood.pkl", "rb"))
     elif test_type == "Metabolic":
-        data = pkl.load(open("data/users/1/meta.pkl", "rb"))
+        data = pkl.load(open(f"{BASE_PATH}/meta.pkl", "rb"))
     else:
         raise ValueError
 
@@ -267,8 +268,8 @@ def find_soap(timestamp):
 
 @app.route("/tests")
 def return_tests():
-    tests = pkl.load(open("data/users/1/tests.pkl", "rb"))
-    recommended_tests = pkl.load(open("data/users/1/tests.pkl", "rb"))
+    tests = pkl.load(open(f"{BASE_PATH}/tests.pkl", "rb"))
+    recommended_tests = pkl.load(open(f"{BASE_PATH}/tests.pkl", "rb"))
     tests_ret = []
     for test_type in recommended_tests:
         for timestamp in recommended_tests[test_type]:
@@ -323,13 +324,13 @@ def return_data():
     ]
     graph_set = set(sanitized_words)
     test_data_mapping = [
-        ("high pressure", "data/users/1/high_bp.pkl"),
-        ("low pressure", "data/users/1/low_bp.pkl"),
-        ("ecg", "data/users/1/ecg.pkl"),
-        ("blood", "data/users/1/blood.pkl"),
-        ("metabolic", "data/users/1/meta.pkl"),
-        ("urine", "data/users/1/urine.pkl"),
-        ("echocardiogram", "data/users/1/echo.pkl"),
+        ("high pressure", f"{BASE_PATH}/high_bp.pkl"),
+        ("low pressure", f"{BASE_PATH}/low_bp.pkl"),
+        ("ecg", f"{BASE_PATH}/ecg.pkl"),
+        ("blood", f"{BASE_PATH}/blood.pkl"),
+        ("metabolic", f"{BASE_PATH}/meta.pkl"),
+        ("urine", f"{BASE_PATH}/urine.pkl"),
+        ("echocardiogram", f"{BASE_PATH}/echo.pkl"),
     ]
     important_data = [
         i
@@ -352,7 +353,7 @@ def return_data():
 
 @app.route("/drugs")
 def return_drugs():
-    drugs = pkl.load("data/users/1/drugs.pkl")
+    drugs = pkl.load(f"{BASE_PATH}/drugs.pkl")
     return drugs
 
 
@@ -368,3 +369,15 @@ def return_question():
         .choices[0]
         .text.strip()
     )
+
+
+@app.route("/switch")
+def do_switch():
+    global soaps
+    global full_string
+    global BASE_PATH
+    BASE_PATH = "data_new/users/1"
+    soaps = pkl.load(open(f"{BASE_PATH}/soaps.pkl", "rb"))
+    full_string = ""
+    for i in range(len(soaps)):
+        full_string += f"Note {i}: {soaps[i]}\n"
